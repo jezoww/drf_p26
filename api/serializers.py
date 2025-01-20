@@ -1,15 +1,15 @@
 from django.contrib.auth.hashers import make_password
 from django.utils.functional import cached_property
-from rest_framework.serializers import ValidationError
+from rest_framework.serializers import ValidationError, Serializer
 from django.core.validators import MaxValueValidator, MinValueValidator
-from rest_framework.fields import CharField, ReadOnlyField, IntegerField, DecimalField, BooleanField
+from rest_framework.fields import CharField, ReadOnlyField, IntegerField, DecimalField, BooleanField, EmailField
 from rest_framework.serializers import ModelSerializer
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from rest_framework.utils.serializer_helpers import BindingDict
 import copy
 
-from api.models import Post, SubJob, Employee, User, Product, Category, OrderItem, Order
+from api.models import Post, SubJob, Employee, User, Product, Category, OrderItem, Order, TestOrder
 
 
 class PostModelSerializer(ModelSerializer):
@@ -140,7 +140,7 @@ class OrderModelSerializer(ModelSerializer):
     def validate(self, attr):
         quantity = attr.get('quantity')
         price = attr.get('amount')
-        product_id = attr.get('product')
+        # product_id = attr.get('product')
         if quantity < 1:
             raise ValidationError("Quantity must be at least 1")
         if price < 10:
@@ -213,19 +213,67 @@ class ProductBySearchModelSerializer(ModelSerializer):
         fields = '__all__'
 
 
+# class RegisterModelSerializer(ModelSerializer):
+#     class Meta:
+#         model = User
+#         fields = 'email', 'password', 'is_active',
+#         extra_kwargs = {
+#             'password': {'write_only': True},
+#             'is_active': {'read_only': True}
+#         }
+#
+#     def validate_username(self, value):
+#         if User.objects.filter(username=value).exists():
+#             raise ValidationError("User with this username already registered!")
+#         return value
+#
+#     def validate_password(self, value):
+#         return make_password(value)
+
+
+class TestOrderModelSerializer(ModelSerializer):
+    class Meta:
+        model = TestOrder
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.required = False
+
+        # extra_kwargs = {
+        #     'phone_number': {'required': False},
+        #     'longitude': {'required': False},
+        #     'latitude': {'required': False},
+        # }
+
+    def validate(self, attrs):
+        phone_number = attrs.get('phone_number')
+        is_status = attrs.get('is_status')
+        longitude = attrs.get('longitude')
+        latitude = attrs.get('latitude')
+
+        if is_status:
+            if not phone_number:
+                raise ValidationError("Telefon raqam majburiy!")
+            if not longitude or not latitude:
+                raise ValidationError("Location majburiy!")
+
+        return attrs
+
+
+# class RegisterSerializer(Serializer):
+#     first_name = CharField(max_length=128)
+#     last_name = CharField(max_length=128)
+#     email = EmailField()
+#
+#     def validate_email(self, value):
+#         if User.objects.filter(email=value).exists():
+#             raise ValidationError("This email already registered!")
+#         return value
+
+
 class RegisterModelSerializer(ModelSerializer):
     class Meta:
         model = User
-        fields = 'username', 'password', 'is_active',
-        extra_kwargs = {
-            'password': {'write_only': True},
-            'is_active': {'read_only': True}
-        }
-
-    def validate_username(self, value):
-        if User.objects.filter(username=value).exists():
-            raise ValidationError("User with this username already registered!")
-        return value
-
-    def validate_password(self, value):
-        return make_password(value)
+        fields = 'first_name', 'last_name', 'email'

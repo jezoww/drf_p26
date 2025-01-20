@@ -9,8 +9,12 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
+from os import getenv
 from os.path import join
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,7 +28,7 @@ SECRET_KEY = 'django-insecure-2l$d0b42nn7msyml$eky@v-5pb5ks9lu^-jaer#_w-dvrs$7^o
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -144,3 +148,13 @@ SPECTACULAR_SETTINGS = {
 }
 
 AUTH_USER_MODEL = 'api.User'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_USE_TLS = True
+EMAIL_PORT = 587
+EMAIL_HOST_USER = getenv('EMAIL')
+EMAIL_HOST_PASSWORD = getenv('EMAIL_PASSWORD')
+
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'

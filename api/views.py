@@ -1,3 +1,6 @@
+import random
+
+from django.contrib.auth.hashers import make_password
 from django.db.models import Count, Sum, Q
 from django.db.models.fields import IntegerField, FloatField
 from django.db.models.functions import Cast
@@ -6,7 +9,7 @@ from django.shortcuts import render
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_202_ACCEPTED
+from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_400_BAD_REQUEST
 from datetime import datetime
 
 from api.models import Post, SubJob, Employee, User, Category, Order, Product
@@ -14,7 +17,8 @@ from api.serializers import PostModelSerializer, SubJobModelSerializer, Employee
     PostDetailModelSerializer, MyPostModelSerializer, TheMostPopularUserModelSerializer, ExpiredPostModelSerializer, \
     ProductModelSerializer, CategoryModelSerializer, OrderModelSerializer, ProductDynamicModelSerializer, \
     CategoryDetailModelSerializer, ProfileModelSerializer, ProductByCategoryModelSerializer, \
-    ProductBySearchModelSerializer, RegisterModelSerializer
+    ProductBySearchModelSerializer, TestOrderModelSerializer, RegisterModelSerializer
+from api.tasks import send_email_task
 
 
 @extend_schema(tags=['post'], responses=PostModelSerializer)
@@ -197,9 +201,18 @@ def order_item_api_view(request, pk):
 ])
 @api_view(['GET'])
 def product_dynamic_fields_api_view(request):
-    fields = request.query_params.get('fields').split(',')
+    allowed_fields = request.query_params.get('fields').split(',')
     products = Product.objects.all()
     s = ProductDynamicModelSerializer(instance=products, many=True).data
+    i = 0
+    for product in s:
+        keys_to_remove = []
+        for key in product.keys():
+            if key not in allowed_fields:
+                keys_to_remove.append(key)
+        for k in keys_to_remove:
+            s[i].pop(k)
+        i += 1
     return Response(s)
 
 
@@ -240,8 +253,8 @@ def order_create_api_view(request):
 @extend_schema(tags=['homework-3'])
 @api_view(['POST'])
 def profile_api_view(request):
-    if not request.user.is_authenticated:
-        return JsonResponse({"message": "You need to login in!"})
+    # if not request.user.is_authenticated:
+    #     return JsonResponse({"message": "You need to login in!"})
     s = ProfileModelSerializer(instance=request.user).data
     if not request.user.is_superuser:
         allowed_fields = ['username', 'email']
@@ -290,13 +303,65 @@ def product_activate_api_view(request, pk):
     return JsonResponse({"message": "Updated!"}, status=HTTP_202_ACCEPTED)
 
 
-@extend_schema(tags=['homework-3'], responses=RegisterModelSerializer, request=RegisterModelSerializer)
+# @extend_schema(tags=['homework-3'], responses=RegisterModelSerializer, request=RegisterModelSerializer)
+# @api_view(['POST'])
+# def register_api_view(request):
+#     data = request.data
+#     s = RegisterModelSerializer(data=data)
+#     if s.is_valid():
+#         user = s.save()
+#         serialized_user = RegisterModelSerializer(instance=user).data
+#         return JsonResponse(serialized_user, status=HTTP_201_CREATED)
+#     return JsonResponse(s.errors)
+
+
+@extend_schema(tags=['homework-3'], responses=TestOrderModelSerializer, request=TestOrderModelSerializer)
+@api_view(['POST'])
+def test_order_create_api_view(request):
+    data = request.data
+    s = TestOrderModelSerializer(data=data)
+    if s.is_valid():
+        order = s.save()
+        serialized_order = TestOrderModelSerializer(instance=order).data
+        return JsonResponse(serialized_order, status=HTTP_201_CREATED)
+    return JsonResponse(s.errors)
+
+
+# @extend_schema(tags=['auth'], request=RegisterModelSerializer)
+# @api_view(["POST"])
+# def register_api_view(request):
+#     data = request.data
+#     s = RegisterModelSerializer(data=data)
+#     if s.is_valid():
+#         s.save()
+#         code = random.randint(100000, 999999)
+#         send_email_task.delay(to_email=s.data.get('email'), code=code)
+#         response = Response("Send")
+#         response.set_cookie('qwertyuiopasdfghjkl', make_password(str(code)))
+#         return response
+#
+#     return JsonResponse(s.errors)
+
+
+@extend_schema(tags=['auth'], request=RegisterModelSerializer)
 @api_view(['POST'])
 def register_api_view(request):
-    data = request.data
-    s = RegisterModelSerializer(data=data)
-    if s.is_valid():
-        user = s.save()
-        serialized_user = RegisterModelSerializer(instance=user).data
-        return JsonResponse(serialized_user, status=HTTP_201_CREATED)
-    return JsonResponse(s.errors)
+    serializer = RegisterModelSerializer(data=request.data)
+    user = User.objects.filter(email=request.data.get("email")).first()
+    if serializer.is_valid() or (user and not user.is_active):
+        if not user:
+            userr = serializer.save()
+            userr.is_active = False
+            userr.save()
+        data = serializer.validated_data
+        random_code = random.randrange(10 ** 5, 10 ** 6)
+        email = data.get("email")
+        send_email_task.delay(to_email=email, code=random_code)
+        response = Response("Send code email address !", status=HTTP_200_OK)
+        response.set_cookie("verify", make_password(str(random_code)))
+        return response
+    elif user and user.is_active:
+        return Response("Already exists email !", status=HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+
