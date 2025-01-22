@@ -441,21 +441,3 @@ def login_api_view(request):
         login(request, user)
         return JsonResponse({"message": "successfully login!"})
     return JsonResponse(s.errors)
-
-
-@extend_schema(tags=['auth'], request=LoginSerializer)
-@api_view(['POST'])
-def google_login_api_view(request):
-    adapter = GoogleOAuth2Adapter()
-    client = OAuth2Client(request.data.get('client_id'))
-    view = SocialLoginView.adapter_view(adapter, client=client)
-    return view(request._request)
-
-
-@extend_schema(tags=['auth'], request=LoginSerializer)
-@api_view(['POST'])
-def facebook_login_api_view(request):
-    adapter = FacebookOAuth2Adapter()
-    client = OAuth2Client(request.data.get('client_id'))
-    view = SocialLoginView.adapter_view(adapter, client=client)
-    return view(request._request)

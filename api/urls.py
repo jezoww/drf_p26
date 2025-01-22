@@ -37,6 +37,4 @@ urlpatterns = [
     path('auth/forgot_password/', forgot_password_api_view),
     path('auth/forgot_password/check/', forgot_password_check_api_view),
     path('login/', login_api_view),
-    path('auth/google/', google_login_api_view),
-    path('auth/facebook/', facebook_login_api_view),
 ]
