@@ -1,13 +1,8 @@
-from django.contrib.auth.hashers import make_password, check_password
-from django.utils.functional import cached_property
-from rest_framework.serializers import ValidationError, Serializer
+from django.contrib.auth.hashers import check_password
 from django.core.validators import MaxValueValidator, MinValueValidator
 from rest_framework.fields import CharField, ReadOnlyField, IntegerField, DecimalField, BooleanField, EmailField
 from rest_framework.serializers import ModelSerializer
-from rest_framework.settings import api_settings
-from rest_framework.utils import model_meta
-from rest_framework.utils.serializer_helpers import BindingDict
-import copy
+from rest_framework.serializers import ValidationError, Serializer
 
 from api.models import Post, SubJob, Employee, User, Product, Category, OrderItem, Order, TestOrder
 

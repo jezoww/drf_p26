@@ -1,4 +1,3 @@
-
 from os import getenv
 from os.path import join
 from pathlib import Path
@@ -10,7 +9,6 @@ SECRET_KEY = 'django-insecure-2l$d0b42nn7msyml$eky@v-5pb5ks9lu^-jaer#_w-dvrs$7^o
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-
 
 INSTALLED_APPS = [
     'django.contrib.auth',
@@ -32,7 +30,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware'
 ]
 
 ROOT_URLCONF = 'root.urls'
@@ -56,18 +53,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'root.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-
-# Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -84,8 +75,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
 
@@ -94,9 +83,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
 STATIC_ROOT = join(BASE_DIR, 'staticfiles')
@@ -138,4 +124,3 @@ EMAIL_HOST_USER = 'bapeold107@gmail.com'
 EMAIL_HOST_PASSWORD = 'ypatddsjruazvmnd '
 
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
-

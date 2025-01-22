@@ -1,6 +1,5 @@
 import random
 from datetime import datetime
-
 from django.contrib.auth import login
 from django.contrib.auth.hashers import make_password
 from django.db.models import Count, Sum, Q
