@@ -5,9 +5,7 @@ from api.views import post_list_apiview, post_create_apiview, subjob_list_apivie
     employees_for_subjob, expired_posts, product_create_api_view, order_item_api_view, product_dynamic_fields_api_view, \
     category_detail_api_view, category_create_api_view, order_create_api_view, profile_api_view, \
     products_by_search_api_view, product_activate_api_view, test_order_create_api_view, register_api_view, check_code, \
-    forgot_password_api_view, forgot_password_check_api_view, login_api_view, google_login_api_view, \
-    facebook_login_api_view
-
+    forgot_password_api_view, forgot_password_check_api_view, login_api_view
 urlpatterns = [
     path('post', post_list_apiview),
     path('post-create/', post_create_apiview),
