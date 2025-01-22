@@ -1,4 +1,4 @@
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth.hashers import make_password, check_password
 from django.utils.functional import cached_property
 from rest_framework.serializers import ValidationError, Serializer
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -277,3 +277,93 @@ class RegisterModelSerializer(ModelSerializer):
     class Meta:
         model = User
         fields = 'first_name', 'last_name', 'email'
+
+    def validate_email(self, value):
+        return value
+
+
+class RegisterCheckModelSerializer(ModelSerializer):
+    confirm_password = CharField(write_only=True)
+    code = IntegerField(write_only=True)
+    verify_code = CharField(read_only=True)
+    email = EmailField()
+
+    class Meta:
+        model = User
+        fields = 'password', 'confirm_password', 'code', 'verify_code', 'email'
+
+    def validate_code(self, value):
+        verify_code = self.initial_data.get('verify_code')
+        if not check_password(value, verify_code):
+            raise ValidationError("Incorrect code!")
+
+    def validate_verify_code(self, value):
+        pass
+
+    def validate_email(self, value):
+        if not User.objects.filter(email=value):
+            raise ValidationError("Something went wrong!")
+
+    def validate_confirm_password(self, value):
+        password = self.initial_data.get('password')
+        if password != value:
+            raise ValidationError("Passwords must match!")
+
+    def save(self, **kwargs):
+        user = User.objects.get(email=self.initial_data.get('email'))
+        user.set_password(self.validated_data.get('password'))
+        user.is_active = True
+        user.save()
+        return user
+
+
+class ForgotPasswordSerializer(Serializer):
+    email = EmailField(required=True)
+
+    def validate_email(self, value):
+        if not User.objects.filter(email=value).exists():
+            raise ValidationError("Email not found!")
+        return value
+
+
+class ForgotPasswordCheckSerializer(Serializer):
+    email = EmailField(read_only=True)
+    code = IntegerField(required=True)
+    verify_code = CharField(read_only=True)
+    new_password = CharField(required=True)
+
+    def validate_email(self, value):
+        if not User.objects.filter(email=value).exists():
+            raise ValidationError("Email not found!")
+        return value
+
+    def validate_code(self, value):
+        if not check_password(value, self.initial_data.get('verify_code')):
+            raise ValidationError("Incorrect code!")
+
+        return value
+
+    def save(self, **kwargs):
+        user = User.objects.filter(email=self.initial_data.get('email')).first()
+        new_password = self.initial_data.get('new_password')
+        user.set_password(new_password)
+        user.save()
+        return user
+
+
+class LoginSerializer(Serializer):
+    email = EmailField(required=True)
+    password = CharField()
+
+    def validate_email(self, value):
+        if not User.objects.filter(email=value).exists():
+            raise ValidationError("Email not found!")
+
+        return value
+
+    def validate_password(self, value):
+        user = User.objects.filter(email=self.initial_data.get('email')).first()
+        if user:
+            if not user.check_password(value):
+                raise ValidationError("Incorrect password!")
+        return value

@@ -1,24 +1,33 @@
 import random
+from datetime import datetime
 
+from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView
+from django.contrib.auth import login
 from django.contrib.auth.hashers import make_password
 from django.db.models import Count, Sum, Q
-from django.db.models.fields import IntegerField, FloatField
+from django.db.models.fields import FloatField
 from django.db.models.functions import Cast
 from django.http import JsonResponse
-from django.shortcuts import render
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_400_BAD_REQUEST
-from datetime import datetime
 
 from api.models import Post, SubJob, Employee, User, Category, Order, Product
 from api.serializers import PostModelSerializer, SubJobModelSerializer, EmployeeModelSerializer, \
     PostDetailModelSerializer, MyPostModelSerializer, TheMostPopularUserModelSerializer, ExpiredPostModelSerializer, \
     ProductModelSerializer, CategoryModelSerializer, OrderModelSerializer, ProductDynamicModelSerializer, \
     CategoryDetailModelSerializer, ProfileModelSerializer, ProductByCategoryModelSerializer, \
-    ProductBySearchModelSerializer, TestOrderModelSerializer, RegisterModelSerializer
+    ProductBySearchModelSerializer, TestOrderModelSerializer, RegisterModelSerializer, RegisterCheckModelSerializer, \
+    ForgotPasswordSerializer, ForgotPasswordCheckSerializer, LoginSerializer
 from api.tasks import send_email_task
+
+
+def random_code():
+    return random.randrange(10 ** 5, 10 ** 6)
 
 
 @extend_schema(tags=['post'], responses=PostModelSerializer)
@@ -353,15 +362,100 @@ def register_api_view(request):
             userr = serializer.save()
             userr.is_active = False
             userr.save()
-        data = serializer.validated_data
-        random_code = random.randrange(10 ** 5, 10 ** 6)
+        data = serializer.data
+        code = random_code()
         email = data.get("email")
-        send_email_task.delay(to_email=email, code=random_code)
+        send_email_task.delay(to_email=email, code=code)
         response = Response("Send code email address !", status=HTTP_200_OK)
-        response.set_cookie("verify", make_password(str(random_code)))
+        response.set_cookie("tgjtyhfgdsrtyhfgd", make_password(str(code)), max_age=300)
+        response.set_cookie("qwertyuiosdfghvcvbhgbnhgbn", email, max_age=300)
         return response
     elif user and user.is_active:
         return Response("Already exists email !", status=HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(tags=['auth'], request=RegisterCheckModelSerializer)
+@api_view(['POST'])
+def check_code(request):
+    data = request.data.copy()
+
+    code = data.get('code')
+    verify_code = request.COOKIES.get('tgjtyhfgdsrtyhfgd')
+    email = request.COOKIES.get('qwertyuiosdfghvcvbhgbnhgbn')
+
+    if not verify_code or not email:
+        return JsonResponse({"message": "Code is expired!"})
+    #
+    # if not check_password(code, verify_code):
+    #     return JsonResponse({"message": "Incorrect code!"})
+
+    data['email'] = email
+    data['code'] = code
+    data['verify_code'] = verify_code
+
+    s = RegisterCheckModelSerializer(data=data)
+    if s.is_valid():
+        s.save()
+        return JsonResponse({"message": "User created!"}, status=HTTP_201_CREATED)
+    return JsonResponse(s.errors)
+
+
+@extend_schema(tags=['auth'], request=ForgotPasswordSerializer)
+@api_view(['POST'])
+def forgot_password_api_view(request):
+    data = request.data
+    s = ForgotPasswordSerializer(data=data)
+    if s.is_valid():
+        code = random_code()
+        send_email_task.delay(to_email=data.get('email'), code=code)
+        response = JsonResponse({"message": "Code send to your email!"})
+        response.set_cookie('zawsxedcrfvtbgyh', data.get('email'), max_age=300)
+        response.set_cookie('sedrfgvbhhytfrfgvbh', make_password(str(code)), max_age=300)
+        return response
+    return JsonResponse(s.errors)
+
+
+@extend_schema(tags=['auth'], request=ForgotPasswordCheckSerializer)
+@api_view(['POST'])
+def forgot_password_check_api_view(request):
+    data = request.data.copy()
+    data['email'] = request.COOKIES.get('zawsxedcrfvtbgyh')
+    data['verify_code'] = request.COOKIES.get('sedrfgvbhhytfrfgvbh')
+
+    s = ForgotPasswordCheckSerializer(data=data)
+
+    if s.is_valid():
+        s.save()
+        return JsonResponse({"message": "User updated!"}, status=HTTP_202_ACCEPTED)
+    return JsonResponse(s.errors)
+
+
+@extend_schema(tags=['auth'], request=LoginSerializer)
+@api_view(['POST'])
+def login_api_view(request):
+    data = request.data
+    s = LoginSerializer(data=data)
+    if s.is_valid():
+        user = User.objects.get(email=s.validated_data.get('email'))
+        login(request, user)
+        return JsonResponse({"message": "successfully login!"})
+    return JsonResponse(s.errors)
+
+
+@extend_schema(tags=['auth'], request=LoginSerializer)
+@api_view(['POST'])
+def google_login_api_view(request):
+    adapter = GoogleOAuth2Adapter()
+    client = OAuth2Client(request.data.get('client_id'))
+    view = SocialLoginView.adapter_view(adapter, client=client)
+    return view(request._request)
+
+
+@extend_schema(tags=['auth'], request=LoginSerializer)
+@api_view(['POST'])
+def facebook_login_api_view(request):
+    adapter = FacebookOAuth2Adapter()
+    client = OAuth2Client(request.data.get('client_id'))
+    view = SocialLoginView.adapter_view(adapter, client=client)
+    return view(request._request)
